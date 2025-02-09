@@ -1,21 +1,372 @@
+/* General styles */
 .judge0-file-menu {
-    min-width: 15rem !important;
+  min-width: 15rem !important;
 }
 
 #judge0-status-line {
-    font-family: "JetBrains Mono" !important;
+  font-family: "JetBrains Mono" !important;
 }
 
 #judge0-status-line:empty {
-    display: none;
+  display: none;
 }
 
 .judge0-hidden {
-    display: none !important;
+  display: none !important;
 }
 
 @media (display-mode: standalone) {
-    .judge0-standalone-hidden {
-        display: none !important;
-    }
+  .judge0-standalone-hidden {
+    display: none !important;
+  }
+}
+
+/* Model selector */
+#model-selector {
+  background: var(--vscode-dropdown-background);
+  color: white;
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  font-size: 12px;
+  margin-top: auto;
+  padding: 3px;
+  width: 100%;
+  font-family: "JetBrains Mono";
+}
+
+#model-selector option {
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+}
+
+/* Chat container */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 90%;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--vscode-editor-foreground);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Chat message styles */
+.chat-message {
+  display: flex;
+  max-width: 80%;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.user-message {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.assistant-message {
+  margin-right: auto;
+  justify-content: flex-start;
+}
+
+.message-content {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  max-width: 100%;
+  white-space: normal;
+  background: var(--vscode-editor-lineHighlightBackground);
+  color: var(--vscode-editor-foreground);
+}
+
+.message-content p,
+.message-content ol,
+.message-content li,
+.message-content h2,
+.message-content h3 {
+  color: var(--vscode-editor-foreground);
+}
+
+/* Code block styles */
+.message-content pre {
+  margin: 1em 0;
+  background-color: var(--vscode-editor-background) !important;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 1em;
+}
+
+.message-content pre code {
+  display: block;
+  font-family: "JetBrains Mono";
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Override highlight.js theme colors for better visibility */
+.hljs {
+  background: transparent !important;
+  color: #abb2bf !important;
+}
+
+.message-content h2,
+.message-content h3 {
+  color: #ffffff;
+  margin: 1em 0 0.5em 0;
+  font-weight: 600;
+}
+
+.user-message .message-content {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.assistant-message .message-content {
+  background: var(--vscode-editor-lineHighlightBackground);
+  color: var(--vscode-editor-foreground);
+}
+
+/* Assistant icon */
+.assistant-icon {
+  margin-top: 10px;
+}
+
+/* Chat input container */
+.chat-input-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  gap: 0.5rem;
+  border-top: 1px solid var(--vscode-panel-border);
+  padding: 0.75rem;
+  background-color: var(--vscode-editor-background);
+}
+
+#code-input {
+  display: none; /* Hidden initially */
+  flex: 1;
+  min-height: 40px;
+  padding: 0.5rem;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-editor-foreground);
+  font-family: "JetBrains Mono";
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+
+.chat-textarea-container {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+#chat-textarea {
+  flex: 1;
+  min-height: 50px;
+  padding: 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-editor-foreground);
+  font-family: "JetBrains Mono";
+  resize: none;
+}
+.chat-editable {
+  min-height: 40px;
+  max-height: 120px;
+  padding: 0.5rem;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-editor-foreground);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: "JetBrains Mono";
+}
+
+/* Send button */
+#send-message {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-family: "JetBrains Mono";
+}
+
+#send-message:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+#send-message:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--vscode-button-secondaryBackground);
+}
+
+/* Error message */
+.error-message .message-content {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-inputValidation-errorForeground);
+  margin-left: 0;
+}
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.7;
+  color: #ffffff;
+}
+
+.thinking::after {
+  content: "...";
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%,
+  20% {
+    content: "";
+  }
+  40% {
+    content: ".";
+  }
+  60% {
+    content: "..";
+  }
+  80%,
+  100% {
+    content: "...";
+  }
+}
+
+/* Error help buttons */
+.error-help-buttons {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.error-help-yes,
+.error-help-no {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: "JetBrains Mono";
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 70px;
+  text-align: center;
+}
+
+/* Dark theme buttons */
+.dark-theme .error-help-yes {
+  background-color: #4d4d4d;
+  color: #ffffff;
+}
+
+.dark-theme .error-help-no {
+  color: #ffffff;
+  background-color: inherit;
+}
+
+/* Light theme buttons */
+.light-theme .error-help-yes {
+  background-color: #e9ecef;
+  color: #ffffff;
+}
+
+.light-theme .error-help-no {
+  color: #000000;
+}
+
+/* Hover states */
+.error-help-yes:hover,
+.error-help-no:hover {
+  opacity: 0.9;
+}
+
+/* Theme-specific overrides */
+.light-theme .message-content {
+  background: transparent;
+  color: #000000;
+}
+
+.light-theme #model-selector {
+  background: #f5f5f5;
+  color: #000000;
+}
+
+.light-theme .assistant-message .message-content {
+  background: #f5f5f5;
+  color: #000000;
+}
+
+.light-theme .message-content pre {
+  background-color: #ffffff !important;
+  border: 1px solid #e0e0e0;
+}
+
+.dark-theme .message-content {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.dark-theme .assistant-message .message-content {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.dark-theme .message-content pre {
+  background-color: #282c34 !important;
+  border: 1px solid #3d3d3d;
+}
+
+.dark-theme #chat-textarea {
+  color: white;
+}
+
+.light-theme .thinking {
+  color: black;
+}
+
+.light-theme .user-message .message-content {
+  background: #f5f5f5;
+  color: black;
+}
+
+/* Error output styling */
+.monaco-editor .error-output {
+  color: var(--vscode-errorForeground);
+  font-family: "JetBrains Mono";
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Add some padding to the output area */
+.monaco-editor .monaco-editor-background {
+  padding: 8px;
+}
+
+.line-error {
+  text-decoration: underline wavy red;
+  background-color: rgba(255, 0, 0, 0.1); /* Light red background */
 }

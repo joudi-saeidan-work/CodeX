@@ -1,6 +1,4 @@
-// OpenRouter API related code
-export const OPENROUTER_API_KEY =
-  "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";
+import { OPENROUTER_API_KEY } from "./config.js";
 
 const MARKDOWN_SYSTEM_PROMPT = `
   You are The Professor, an advanced AI specialized in helping programmers debug, analyze, and improve their code.

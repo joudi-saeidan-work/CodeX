@@ -822,7 +822,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               <div class="chat-container">
                 <div class="chat-messages" id="chat-messages"></div>
                 <div class="chat-input-container">
-                  <div contenteditable="true" id="code-input" class="chat-editable" ></div>
+                  <div id="code-input" class="chat-editable" ></div>
                   <div class="chat-textarea-container">
                       <textarea id="chat-textarea" placeholder="Ask the professor anything..."></textarea>
                       <button id="send-message" class="ui primary button" >
@@ -1052,6 +1052,8 @@ function initializeChat($container) {
   updateSendButtonState();
 
   function sendMessage() {
+    $codeInput.find("button:contains('✖ Delete Selected Code')").remove();
+
     console.log("sending message");
     const codeInputDiv = $codeInput?.html().trim();
     const chatTextareaVal = $chatTextarea?.val().trim();
@@ -1240,17 +1242,36 @@ function createThinkingMessage() {
 function addSelectedTextToChat(selectedText) {
   const $codeInput = $("#code-input");
   const $chatTextarea = $("#chat-textarea");
-  $codeInput.show();
+  $codeInput.show().empty(); //show & clear previous content
 
+  //create elements
   const preElement = document.createElement("pre");
   const codeElement = document.createElement("code");
+  const removeButton = document.createElement("button");
 
+  //set up selected text
   codeElement.textContent = selectedText;
-
   preElement.appendChild(codeElement);
+
+  //set up remove button
+  removeButton.textContent = "✖ Delete Selected Code";
+  removeButton.classList.add("remove-btn");
+  removeButton.style.marginLeft = "10px";
+  removeButton.style.cursor = "pointer";
+  removeButton.style.color = "grey";
+  removeButton.style.background = "transparent";
+  removeButton.style.border = "none";
+  removeButton.style.fontSize = "14px";
+
+  //remove selected text when clicked
+  removeButton.onclick = function () {
+    $codeInput.empty().hide();
+  };
+
+  $codeInput.append(removeButton);
   $codeInput.append(preElement);
 
+  //apply syntax highlighting
   hljs.highlightElement(codeElement);
   $chatTextarea.focus();
-  placeCursorAtEnd($chatInput[0]);
 }

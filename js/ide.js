@@ -1254,7 +1254,7 @@ function addSelectedTextToChat(selectedText) {
   preElement.appendChild(codeElement);
 
   //set up remove button
-  removeButton.textContent = "✖ Delete Selected Code";
+  removeButton.textContent = "✖ Remove Selected Code";
   removeButton.classList.add("remove-btn");
   removeButton.style.marginLeft = "10px";
   removeButton.style.cursor = "pointer";

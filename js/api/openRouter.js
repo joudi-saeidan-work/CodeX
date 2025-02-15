@@ -16,12 +16,13 @@ const MARKDOWN_SYSTEM_PROMPT = `
 
 export function callOpenRouterAPI(prompt, model) {
   console.log(`Using model: ${model}`);
+  const apiKey = document.getElementById("apikey-input").value;
   return new Promise((resolve, reject) => {
     $.ajax({
       url: `https://openrouter.ai/api/v1/chat/completions`,
       type: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       data: JSON.stringify({

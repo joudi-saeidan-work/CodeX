@@ -144,7 +144,7 @@ var layoutConfig = {
             {
               type: "stack",
 
-              height: 50,
+              height: 100,
 
               content: [
                 {
@@ -154,12 +154,8 @@ var layoutConfig = {
 
                   id: "professor",
 
-                  title: `
-  
-                        <span class='fa fa-chalkboard-teacher'></span> 
-  
+                  title: `  
                         The Professor
-  
                       `,
 
                   isClosable: false,
@@ -818,6 +814,14 @@ document.addEventListener("DOMContentLoaded", async function () {
                   <option value="deepseek/deepseek-r1-distill-llama-70b:free">DeepSeek: R1 Distill Llama</option>
                   <option value="qwen/qwen2.5-vl-72b-instruct:free">Qwen: Qwen2.5 VL 72B Instruct (free)</option>
                 </select>
+                <div class="apikey-container">
+                <input type="password" id="apikey-input" placeholder="Paste your OpenRouter API key here to begin...">
+                  <button class="toggle-password title="Show/Hide API key">
+                    <i class="eye icon"></i>
+                  </button>
+                  <div class="security-notice">*API key is not stored - for security reasons, you'll need to re-enter it when refreshing</div>
+                </div>
+                </div>
               </div>
               <div class="chat-container">
                 <div class="chat-messages" id="chat-messages"></div>
@@ -1029,6 +1033,22 @@ function initializeChat($container) {
   const $chatMessages = $container.find("#chat-messages");
   const $codeInput = $container.find("#code-input");
   const $chatTextarea = $container.find("#chat-textarea");
+
+  // Add password toggle functionality
+  const $togglePassword = $container.find(".toggle-password");
+  const $apikeyInput = $container.find("#apikey-input");
+
+  $togglePassword.on("click", function () {
+    const type = $apikeyInput.attr("type") === "password" ? "text" : "password";
+    $apikeyInput.attr("type", type);
+
+    const icon = $(this).find("i");
+    if (type === "password") {
+      icon.removeClass("slash").addClass("eye");
+    } else {
+      icon.removeClass("eye").addClass("slash eye");
+    }
+  });
 
   function updateSendButtonState() {
     const codeInputDiv = $codeInput?.html().trim();

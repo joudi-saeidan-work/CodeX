@@ -83,11 +83,8 @@
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.6;
-  word-wrap: break-word;
   max-width: 100%;
-  white-space: normal;
-  background: var(--vscode-editor-lineHighlightBackground);
-  color: var(--vscode-editor-foreground);
+  overflow-x: auto; /* Ensures content doesn't overflow */
 }
 
 .message-content p,
@@ -372,35 +369,72 @@
 }
 
 .apikey-container {
-  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  background-color: #1e1e11;
 }
 
-.security-notice {
-  position: absolute;
-  bottom: -20px;
-  left: 0;
-  font-size: 11px;
-  color: #888;
-  font-style: italic;
-  padding-left: 0.5rem;
-}
-
-.dark-theme #apikey-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
+#apikey-input {
+  width: 80%;
   border: 1px solid var(--vscode-input-border);
   border-radius: 6px;
-  background: var(--vscode-input-background);
+  background-color: #1e1e1e;
   color: var(--vscode-editor-foreground);
   font-family: "JetBrains Mono";
   transition: border-color 0.2s ease;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.dark-theme #apikey-input {
   color: white;
+}
+.light-theme #apikey-input {
+  background-color: white;
+}
+
+.light-theme #apikey-input:focus {
+  background-color: white;
+}
+
+.light-theme .apikey-container {
+  background-color: white;
 }
 
 #apikey-input:focus {
   outline: none;
-  border-color: var(--vscode-focusBorder);
+  background-color: #2d2d2d;
   box-shadow: 0 0 0 2px rgba(var(--vscode-focusBorder), 0.2);
+}
+
+#apikey-button {
+  background-color: #2563eb; /* Modern blue color */
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: auto;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#apikey-button:hover {
+  background-color: #1d4ed8; /* Slightly darker blue on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+}
+
+#apikey-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+#apikey-button:disabled {
+  background-color: #94a3b8;
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .dark-theme .paper.plane.icon {
@@ -409,16 +443,140 @@
 
 .toggle-password {
   position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
+  right: 60px; /* Leave space for the save button */
+  background: transparent;
   border: none;
   cursor: pointer;
-  color: #888;
-  padding: 5px;
-  transition: color 0.2s ease;
-}
-.toggle-password:hover {
   color: #666;
+  transition: color 0.2s ease;
+  margin-left: 10px;
+}
+
+.toggle-password:hover {
+  color: #333;
+}
+
+.toggle-password .icon {
+  font-size: 16px;
+}
+
+.message-timeStamp {
+  font-size: 11px;
+  color: #666;
+  margin-top: 8px;
+  text-align: right;
+  font-style: italic;
+  opacity: 0.7;
+  padding-top: 4px;
+}
+
+.dark-theme .message-timeStamp {
+  color: #888;
+}
+
+.chat-message:hover .message-timeStamp {
+  opacity: 1;
+}
+
+.diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.diff-header h3 {
+  color: #cccccc;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.diff-header button {
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.accept-diff {
+  background: #0078d4;
+  margin-right: 0.5rem;
+}
+
+.accept-diff:hover {
+  background: #006bb3;
+}
+
+.reject-diff {
+  background: #3e3e42;
+}
+
+.reject-diff:hover {
+  background: #4e4e52;
+}
+
+.diff-content {
+  font-family: "JetBrains Mono", monospace;
+  color: #cccccc;
+  font-size: 0.875rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.diff-suggestion p {
+  margin-top: 0.5rem;
+  color: #8a8a8a;
+  font-size: 0.875rem;
+}
+
+/* Apply/remove colors for diff lines */
+.apply {
+  color: #4ade80;
+}
+
+.remove {
+  color: #f87171;
+}
+
+.diff-actions button {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  color: white;
+  cursor: pointer;
+}
+
+.accept-diff {
+  background-color: #0078d4;
+}
+
+.accept-diff:hover {
+  background-color: #006bb3;
+}
+
+.reject-diff {
+  background-color: #3e3e42;
+  margin-left: 0.5rem;
+}
+
+.reject-diff:hover {
+  background-color: #4e4e52;
+}
+
+.diff-explanation {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #8a8a8a;
+}
+
+/* Add these to your existing CSS */
+.errorHighlight {
+  background: rgba(255, 18, 18, 0.15);
+  border-bottom: 2px solid #ff1212;
+}
+
+.errorGlyph {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path fill="%23ff1212" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>')
+    no-repeat;
+  background-position: center;
 }

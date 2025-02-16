@@ -145,7 +145,6 @@ var layoutConfig = {
               type: "stack",
 
               height: 100,
-
               content: [
                 {
                   type: "component",
@@ -220,18 +219,21 @@ function showHttpError(jqXHR) {
   );
 }
 
-function handleAPIError(
-  thinkingMsg,
-
-  error,
-
-  customMessage = "Sorry, I encountered an error."
-) {
+function handleAPIError(thinkingMsg, error) {
   thinkingMsg.remove();
 
-  addMessageToChat("error", customMessage);
+  let message = error.message;
+  if (error.code === 429) {
+    const resetTime = error.metadata?.headers?.["X-RateLimit-Reset"];
+    if (resetTime) {
+      const resetDate = new Date(parseInt(resetTime));
+      message += `\nResets at: ${resetDate.toLocaleString()}`;
+    }
+    message += "\nConsider upgrading at https://openrouter.ai/upgrade";
+  }
 
-  console.error(error);
+  addMessageToChat("error", `API Error: ${message}`);
+  console.error("API Error:", error);
 }
 
 function detectError(output) {
@@ -752,6 +754,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         },
       });
 
+      // need to change this UI
       sourceEditor.addAction({
         id: "add-to-chat",
 
@@ -774,8 +777,21 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       sourceEditor.addCommand(
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-        run
+        run,
+        // trigger monaco's built in auto complete (has syntax understanding only)
+        sourceEditor.trigger("", "editor.action.triggerSuggest", "")
       );
+      // if the user the user presses ctrl+space, trigger the auto complete
+      sourceEditor.onDidChangeModelContent(function (e) {
+        const text = sourceEditor.getValue(); // get the entire text of the editor
+        const cursorPosition = sourceEditor.getPosition(); // get the cursor position
+        const lineContent = sourceEditor
+          .getModel()
+          .getLineContent(cursorPosition.lineNumber); // gets the content of the line that the cursor is on
+
+        // call our auto complete function (sends a request to get the AI response)
+        handleAutoComplete(text, lineContent, cursorPosition);
+      });
     });
 
     layout.registerComponent("stdin", function (container, state) {
@@ -810,17 +826,16 @@ document.addEventListener("DOMContentLoaded", async function () {
               <div class="professor-header">
                 <select id="model-selector" class="ui compact dropdown">
                   <option value="google/gemini-2.0-flash-thinking-exp:free">Google: Gemini Flash Lite 2.0 Preview (free)</option>
-                  <option value="nvidia/llama-3.1-nemotron-70b-instruct:free">NVIDIA: Llama 3.1 Nemotron 70B Instruct (free)</option>
+                  <option value="meta-llama/llama-3.3-70b-instruct:free">Meta: Llama 3.3 70B Instruct</option>
                   <option value="deepseek/deepseek-r1-distill-llama-70b:free">DeepSeek: R1 Distill Llama</option>
                   <option value="qwen/qwen2.5-vl-72b-instruct:free">Qwen: Qwen2.5 VL 72B Instruct (free)</option>
                 </select>
                 <div class="apikey-container">
-                <input type="password" id="apikey-input" placeholder="Paste your OpenRouter API key here to begin...">
-                  <button class="toggle-password title="Show/Hide API key">
+                  <input type="password" id="apikey-input" placeholder="Paste your OpenRouter API key here to begin...">
+                <button class="toggle-password" title="Show/Hide API key">
                     <i class="eye icon"></i>
                   </button>
-                  <div class="security-notice">*API key is not stored - for security reasons, you'll need to re-enter it when refreshing</div>
-                </div>
+                  <button id="apikey-button">save key</button>
                 </div>
               </div>
               <div class="chat-container">
@@ -836,7 +851,25 @@ document.addEventListener("DOMContentLoaded", async function () {
                 </div>
               </div>
             `);
+
       setTimeout(() => {
+        // Load saved API key if exists
+        const savedApiKey = localStorage.getItem("OPENROUTER_API_KEY");
+        if (savedApiKey) {
+          $container.find("#apikey-input").val(savedApiKey);
+        }
+
+        // Handle API key save
+        $container.find("#apikey-button").on("click", function () {
+          const apiKey = $container.find("#apikey-input").val().trim();
+          if (apiKey) {
+            localStorage.setItem("OPENROUTER_API_KEY", apiKey);
+            alert("API key saved successfully!");
+          } else {
+            alert("Please enter an API key");
+          }
+        });
+
         console.log("Checking if dropdown exists in component...");
 
         const $modelSelector = $container.find("#model-selector");
@@ -1028,16 +1061,24 @@ function getLanguageForExtension(extension) {
   return EXTENSIONS_TABLE[extension] || { flavor: CE, language_id: 43 }; // Plain Text (https://ce.judge0.com/languages/43)
 }
 
+function formatTimeStamp() {
+  const now = new Date();
+  return now.toLocaleTimeString("en-UK", {
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+}
+
 function initializeChat($container) {
   const $sendButton = $container.find("#send-message");
   const $chatMessages = $container.find("#chat-messages");
   const $codeInput = $container.find("#code-input");
   const $chatTextarea = $container.find("#chat-textarea");
-
-  // Add password toggle functionality
   const $togglePassword = $container.find(".toggle-password");
   const $apikeyInput = $container.find("#apikey-input");
 
+  // Show/Hide password on click
   $togglePassword.on("click", function () {
     const type = $apikeyInput.attr("type") === "password" ? "text" : "password";
     $apikeyInput.attr("type", type);
@@ -1050,12 +1091,13 @@ function initializeChat($container) {
     }
   });
 
+  // user is not allowed to send an empty message
   function updateSendButtonState() {
     const codeInputDiv = $codeInput?.html().trim();
     const chatTextareaVal = $chatTextarea?.val().trim();
 
     if (chatTextareaVal) {
-      $sendButton.prop("disabled", false); // Enable if either field has content
+      $sendButton.prop("disabled", false);
     } else if (codeInputDiv) {
       if (chatTextareaVal) {
         $sendButton.prop("disabled", false);
@@ -1071,10 +1113,18 @@ function initializeChat($container) {
   // Ensure the send button is disabled initially
   updateSendButtonState();
 
+  // when the user types in the chat textarea, the height of the textarea should be adjusted to fit the content
+  $chatTextarea.on("input", function () {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 200) + "px";
+  });
+
   function sendMessage() {
-    $codeInput.find("button:contains('✖ Delete Selected Code')").remove();
+    // remove the delete button before sending the message
+    $codeInput.find("button:contains('✖ Remove Selected Code')").remove();
 
     console.log("sending message");
+
     const codeInputDiv = $codeInput?.html().trim();
     const chatTextareaVal = $chatTextarea?.val().trim();
 
@@ -1082,7 +1132,6 @@ function initializeChat($container) {
     if (codeInputDiv && chatTextareaVal) {
       // needs some formating to ensure that the user message is seperate
       message = "\n\n\n" + codeInputDiv + "\n\n\n" + chatTextareaVal;
-    } else if (codeInputDiv && !chatTextareaVal) {
     } else {
       message = chatTextareaVal;
     }
@@ -1097,17 +1146,30 @@ function initializeChat($container) {
     $chatTextarea.val("");
     updateSendButtonState();
 
-    const currentCode = sourceEditor.getValue();
+    // format context
+    const codeContext = {
+      source_code: sourceEditor.getValue(),
+      language: $selectLanguage.find(":selected").text(),
+      input: stdinEditor.getValue(),
+      output: stdoutEditor.getValue(),
+    };
 
     const thinkingMsg = createThinkingMessage();
-    $chatMessages.append(thinkingMsg);
-    $chatMessages.scrollTop($chatMessages[0].scrollHeight);
 
     const currentModel = localStorage.getItem("selectedModel");
 
-    const prompt = `Use my current code as context only if I have questions related to it don't mention it in your response: \n\n${currentCode}\n\n User Message: \n\n ${message}`;
+    const prompt = `
+    Use my current code as context only if I have questions related to the code context. Don't mention that you have access to the code context in your response.
+    You have access to the following code context:
+    \n\n ${codeContext.language ? "Language: " + codeContext.language : ""}
+    \n\n ${
+      codeContext.source_code ? "Source Code: " + codeContext.source_code : ""
+    }
+    \n\n ${codeContext.input ? "Input:\n" + codeContext.input : ""}
+    \n\n ${codeContext.output ? "Output:\n" + codeContext.output : ""}
+    \n\n Here is the user message: \n\n ${message}`;
 
-    callOpenRouterAPI(prompt, currentModel)
+    callOpenRouterAPI(prompt, currentModel, "chat")
       .then((response) => {
         thinkingMsg.remove();
         addMessageToChat("assistant", response);
@@ -1130,11 +1192,17 @@ function initializeChat($container) {
 
 // Add these utility functions at the top level
 function createChatMessage(role, content) {
-  return $(`
+  const $chatMessages = $("#chat-messages");
+  const $message = $(`
     <div class="chat-message ${role}-message">
-      ${role === "assistant" ? '<span class="fa fa-robot"></span>' : ""}
-      <div class="message-content">${content}</div>
+      <div class="message-content">
+        ${content}
+        <div class="message-timeStamp">${formatTimeStamp()}</div>
+      </div>
     </div>`);
+  // adding messages to the chat messages div container
+  $chatMessages.append($message);
+  return $message;
 }
 
 function scrollChatToBottom($chatMessages) {
@@ -1149,9 +1217,6 @@ function handleError(error, type = "api") {
     showHttpError(error);
     $runBtn.removeClass("disabled");
   }
-  return `Sorry, I encountered an error${
-    type === "analysis" ? " while analyzing the problem" : ""
-  }.`;
 }
 
 function addMessageToChat(role, content) {
@@ -1160,9 +1225,7 @@ function addMessageToChat(role, content) {
 
   const $message = createChatMessage(role, cleanedContent);
 
-  $chatMessages.append($message);
-
-  // Apply syntax highlighting
+  // Apply syntax highlighting to code blocks
   $message.find("pre code").each(function () {
     hljs.highlightBlock(this);
   });
@@ -1204,27 +1267,30 @@ function attachErrorHelpHandlers($message, output) {
 
   $message.find(".error-help-no").on("click", function () {
     $(this).closest(".chat-message").remove();
+    $("#chat-textarea").show();
+    $("#send-message").show();
   });
 }
 
-function handleErrorHelp($message, output) {
+function handleErrorHelp($message, error) {
   $message.remove();
   const thinkingMsg = createThinkingMessage();
   const $sendButton = $("#send-message");
   const $chatTextarea = $("#chat-textarea");
   $("#chat-messages").append(thinkingMsg);
 
-  const errorPrompt = `Here is the code that produced an error:\n\n${sourceEditor.getValue()}\n\nHere is the error output:\n\n${output}\n\nPlease explain what's causing this error and how to fix it.`;
+  const userPrompt = `Language: ${$selectLanguage
+    .find(":selected")
+    .text()}\n\nCode:\n${sourceEditor.getValue()}\n\nError:\n${error}`;
 
   const currentModel = localStorage.getItem("selectedModel");
-  callOpenRouterAPI(errorPrompt, currentModel)
+
+  callOpenRouterAPI(userPrompt, currentModel, "errorHelp")
     .then((response) => {
       thinkingMsg.remove();
-      addMessageToChat("assistant", response);
+      handleErrorHelpResponse(response, error);
     })
-    .catch((error) =>
-      handleAPIError(thinkingMsg, error, handleError(error, "analysis"))
-    )
+    .catch((error) => handleAPIError(thinkingMsg, error, handleError(error)))
     .finally(() => {
       // show text area and button
       $chatTextarea.show();
@@ -1251,12 +1317,16 @@ function cleanResponse(content) {
 }
 
 function createThinkingMessage() {
-  return $(`
+  const $chatMessages = $("#chat-messages");
+  const thinkingMsg = $(`
           <div class="chat-message assistant-message">
               <span class="fa fa-robot"></span>
               <div class="thinking">Thinking</div>
           </div>
       `);
+  $chatMessages.append(thinkingMsg);
+  $chatMessages.scrollTop($chatMessages[0].scrollHeight);
+  return thinkingMsg;
 }
 
 function addSelectedTextToChat(selectedText) {
@@ -1294,4 +1364,206 @@ function addSelectedTextToChat(selectedText) {
   //apply syntax highlighting
   hljs.highlightElement(codeElement);
   $chatTextarea.focus();
+}
+
+// whats the best model to use for auto complete?
+function handleAutoComplete(text, lineContent, cursorPosition) {
+  // console.log("handleAutoComplete", text, lineContent, cursorPosition);
+  const currentModel = "google/gemini-2.0-flash-thinking-exp:free";
+  const userPrompt = `
+  Complete the following line of code: \n\n\n ${lineContent} \n\n\n The user has already typed:\n\n\n ${text}.\n\n\n 
+  and the cursor is at the end of the line is positioned at: \n\n\n ${cursorPosition}.
+  `;
+  // callOpenRouterAPI(userPrompt, currentModel, "autoComplete")
+  //   .then((response) => {
+  //     console.log("auto complete response", response);
+  //   })
+  //   .catch((error) => console.error("auto complete error", error));
+}
+
+function handleErrorHelpResponse(response, error) {
+  // there are different error patterns so we need to account for most cases
+  const errorLineMatcher = error.match(/line (\d+)/);
+  const errorLine = errorLineMatcher ? parseInt(errorLineMatcher[1]) : null;
+
+  // highlight the error line DOES NOT WORK
+  if (errorLine) {
+    sourceEditor.deltaDecorations(
+      [],
+      [
+        {
+          range: new monaco.Range(errorLine, 1, errorLine, 1),
+          options: {
+            isWholeLine: true,
+            className: "errorHighlight",
+          },
+        },
+      ]
+    );
+  }
+
+  const diffMatch = response.match(
+    /DIFF:\s*\n([\s\S]*?)(?=\n\s*EXPLANATION:|$)/i
+  );
+  const explanationMatch = response.match(/EXPLANATION:\s*([\s\S]*)/i);
+
+  console.log("explanationMatch", explanationMatch);
+  console.log("diffMatch", diffMatch);
+
+  if (diffMatch) {
+    const rawDiff = diffMatch[1];
+    const changes = parseDiff(rawDiff);
+
+    const diffContainer = document.createElement("div");
+    diffContainer.className = "chat-message assistant-message";
+    diffContainer.innerHTML = `
+      <div class="message-content">
+        <div class="diff-header">
+          <h3>Suggested Fix</h3>
+          <div class="diff-actions">
+            <button class="accept-diff">Accept</button>
+            <button class="reject-diff">Reject</button>
+          </div>
+        </div>
+        <pre class="diff-content">${formatDiff(rawDiff)}</pre>
+        ${
+          explanationMatch
+            ? `<p class="diff-explanation">${explanationMatch[1]}</p>`
+            : ""
+        }
+        <div class="message-timeStamp">${formatTimeStamp()}</div>
+      </div>
+    `;
+
+    // Remove any existing diff suggestions first
+    const $chatMessages = $("#chat-messages");
+    $chatMessages.find(".diff-suggestion").remove();
+
+    // Append to chat messages
+    $chatMessages.append(diffContainer);
+
+    scrollChatToBottom($chatMessages);
+
+    // Add event listeners
+    diffContainer
+      .querySelector(".accept-diff")
+      .addEventListener("click", () => {
+        applyChanges(changes, errorLine);
+        diffContainer.remove();
+      });
+
+    diffContainer
+      .querySelector(".reject-diff")
+      .addEventListener("click", () => {
+        diffContainer.remove();
+      });
+  }
+}
+
+function parseDiff(rawDiff) {
+  const changes = [];
+  let currentChange = { removals: [], additions: [] };
+
+  rawDiff.split("\n").forEach((line) => {
+    if (line.startsWith("-")) {
+      if (currentChange.additions.length > 0) {
+        changes.push(currentChange);
+        currentChange = { removals: [], additions: [] };
+      }
+      currentChange.removals.push(line.substring(1)); // Remove trimEnd()
+    } else if (line.startsWith("+")) {
+      currentChange.additions.push(line.substring(1));
+    } else {
+      if (
+        currentChange.removals.length > 0 ||
+        currentChange.additions.length > 0
+      ) {
+        changes.push(currentChange);
+        currentChange = { removals: [], additions: [] };
+      }
+    }
+  });
+
+  if (currentChange.removals.length > 0 || currentChange.additions.length > 0) {
+    changes.push(currentChange);
+  }
+  console.log("grouped changes", changes);
+
+  return changes;
+}
+
+function formatDiff(rawDiff) {
+  return rawDiff
+    .split("\n")
+    .map((line) => {
+      if (line.startsWith("-")) {
+        return `<span class="remove">${line}</span>`;
+      } else if (line.startsWith("+")) {
+        return `<span class="apply">${line}</span>`;
+      }
+      return line;
+    })
+    .join("\n");
+}
+
+function applyChanges(changes, errorLine) {
+  let currentCode = sourceEditor.getValue().split("\n");
+
+  changes.forEach((change) => {
+    let targetLine = -1;
+
+    // 1. Try to find matching line with whitespace sensitivity
+    if (change.removals.length > 0) {
+      // Compare with trimmed lines but preserve original whitespace
+      const lineToFind = change.removals[0];
+      targetLine = currentCode.findIndex(
+        (codeLine) => codeLine.trim() === lineToFind.trim()
+      );
+    }
+
+    // 2. Error line fallback
+    if (targetLine === -1 && errorLine !== null) {
+      targetLine = errorLine - 1;
+      console.log(`Using error line fallback: ${errorLine} → ${targetLine}`);
+    }
+
+    // If we still can't find the line -> try to find context
+    if (targetLine === -1) {
+      const contextLines = currentCode.filter(
+        (lines) => !lines.startsWith("+") && !lines.startsWith("-")
+      );
+      for (const contextLine of contextLines) {
+        targetLine = currentCode.findIndex(
+          (codeLine) => codeLine.trim() === contextLine.trim()
+        );
+        if (targetLine !== -1) {
+          break;
+        }
+      }
+    }
+
+    // if we found a place to make the changes
+    if (targetLine !== -1) {
+      if (change.removals.length > 0) {
+        console.log("Applying changes at line: ", targetLine);
+        console.log("Removing Lines: ", change.removals);
+        console.log("Adding lines ", change.additions);
+
+        if (change.removals.length > 0) {
+          currentCode.splice(targetLine, change.removals.length);
+        }
+        if (change.additions.length > 0) {
+          currentCode.splice(
+            targetLine,
+            0,
+            ...change.additions.map((line) => line.replace(/^ /, "")) // only remove the first space
+          );
+        }
+      }
+    } else {
+      console.log("could not find target line for change");
+    }
+  });
+
+  sourceEditor.setValue(currentCode.join("\n"));
 }
